@@ -1,0 +1,14 @@
+ollama
+openai
+google-genai
+langgraph
+langchain
+langchain-community
+chromadb
+faiss-cpu
+pypdf
+python-dotenv
+fastapi
+uvicorn
+requests
+rich

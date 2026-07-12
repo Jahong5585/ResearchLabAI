@@ -1,0 +1,59 @@
+from Models.plan import Plan
+from Models.plan_step import PlanStep
+
+
+class WorkflowBuilder:
+
+    @staticmethod
+    def build(user_request, plan):
+
+        if plan is None:
+            plan = Plan()
+
+        request = user_request.lower()
+
+        if (
+            "литератур" in request
+            or "обзор" in request
+            or "исследован" in request
+            or "article" in request
+            or "paper" in request
+        ):
+
+            new_plan = Plan()
+
+            required = [
+
+                ("Researcher", "Search papers"),
+
+                ("Ranking", "Rank papers"),
+
+                ("Summarizer", "Summarize papers"),
+
+                ("Cluster", "Group papers"),
+
+                ("Outline", "Build outline"),
+
+                ("Writer", "Write literature review"),
+
+                ("Reviewer", "Review literature")
+
+            ]
+
+            for agent, goal in required:
+
+                new_plan.add(
+
+                    PlanStep(
+
+                        agent,
+
+                        goal
+
+                    )
+
+                )
+
+            return new_plan
+
+        return plan
