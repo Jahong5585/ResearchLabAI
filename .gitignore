@@ -1,19 +1,37 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+﻿# Do not upload the API folder
+/API/
 
+# Secret configuration files
 .env
+.env.*
+!.env.example
 
-.vscode/settings.json
+# Python virtual environments
+.venv/
+venv/
 
-logs/
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
 
-models/
+# Test and analysis cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-database/
-
+# Local databases
 *.db
+*.sqlite
+*.sqlite3
 
-Thumbs.db
+# Log files
+*.log
+
+# Operating system files
 .DS_Store
+Thumbs.db
+
+# Editor settings
+.vscode/
+.idea/

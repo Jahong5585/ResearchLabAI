@@ -28,7 +28,7 @@ class Researcher(BaseAgent):
 
         papers = service.search(
             search_query,
-            rows=10
+            rows=25
         )
 
         log(

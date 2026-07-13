@@ -149,6 +149,110 @@ Abstract:
 
                 keywords=keywords,
 
+                research_objective=sections.get(
+                    "ResearchObjective",
+                    "Not specified"
+                ).strip(),
+
+                research_questions=sections.get(
+                    "ResearchQuestions",
+                    "Not specified"
+                ).strip(),
+
+                study_type=sections.get(
+                    "StudyType",
+                    "Not specified"
+                ).strip(),
+
+                educational_level=sections.get(
+                    "EducationalLevel",
+                    "Not specified"
+                ).strip(),
+
+                country=sections.get(
+                    "Country",
+                    "Not specified"
+                ).strip(),
+
+                discipline=sections.get(
+                    "Discipline",
+                    "Not specified"
+                ).strip(),
+
+                participants=sections.get(
+                    "Participants",
+                    "Not specified"
+                ).strip(),
+
+                dataset=sections.get(
+                    "Dataset",
+                    "Not specified"
+                ).strip(),
+
+                sample_size=sections.get(
+                    "SampleSize",
+                    "Not specified"
+                ).strip(),
+
+                study_period=sections.get(
+                    "StudyPeriod",
+                    "Not specified"
+                ).strip(),
+
+                ai_field=sections.get(
+                    "AIField",
+                    "Not specified"
+                ).strip(),
+                ai_models=sections.get(
+                    "AIModels",
+                    "Not specified"
+                ).strip(),
+
+                algorithms=sections.get(
+                    "Algorithms",
+                    "Not specified"
+                ).strip(),
+
+                tools=sections.get(
+                    "Tools",
+                    "Not specified"
+                ).strip(),
+
+                frameworks=sections.get(
+                    "Frameworks",
+                    "Not specified"
+                ).strip(),
+
+                evaluation_metrics=sections.get(
+                    "EvaluationMetrics",
+                    "Not specified"
+                ).strip(),
+
+                results=sections.get(
+                    "Results",
+                    "Not specified"
+                ).strip(),
+
+                strengths=sections.get(
+                    "Strengths",
+                    "Not specified"
+                ).strip(),
+
+                weaknesses=sections.get(
+                    "Weaknesses",
+                    "Not specified"
+                ).strip(),
+
+                practical_implications=sections.get(
+                    "PracticalImplications",
+                    "Not specified"
+                ).strip(),
+
+                future_research=sections.get(
+                    "FutureResearch",
+                    "Not specified"
+                ).strip(),
+
                 verified_facts=verified_facts
 
             )
@@ -173,6 +277,9 @@ Abstract:
         task.result = summaries
 
         print(f"[Summarizer] summaries: {len(summaries)}")
-        print(f"[Summarizer] task.article_summaries: {len(task.article_summaries)}")
+        print(
+            f"[Summarizer] task.article_summaries: "
+            f"{len(task.article_summaries)}"
+        )
 
         return summaries
