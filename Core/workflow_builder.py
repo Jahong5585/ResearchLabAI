@@ -3,36 +3,91 @@ from Models.plan_step import PlanStep
 
 
 class WorkflowBuilder:
+    """
+    Builds a deterministic workflow for literature-review requests.
+
+    The Planner may suggest a plan, but literature reviews always use
+    the required scientific pipeline defined below.
+    """
+
+    LITERATURE_KEYWORDS = (
+        # Russian
+        "литератур",
+        "обзор",
+        "исследован",
+        "научная статья",
+        "научные статьи",
+        "статьи",
+        "публикаци",
+        "систематический обзор",
+        "анализ литературы",
+
+        # English
+        "literature",
+        "literature review",
+        "systematic review",
+        "research",
+        "article",
+        "articles",
+        "paper",
+        "papers",
+        "publication",
+        "publications",
+    )
+
     @staticmethod
-    def build(user_request, plan):
+    def build(user_request: str, plan: Plan | None) -> Plan:
+        """
+        Create a workflow for the user's request.
+
+        For literature-review requests, a fixed scientific workflow is used.
+        For other requests, the plan created by Planner is returned unchanged.
+        """
+
         if plan is None:
             plan = Plan()
 
-        request = user_request.lower()
+        request = (user_request or "").casefold().strip()
 
-        if (
-            "литератур" in request
-            or "обзор" in request
-            or "исследован" in request
-            or "article" in request
-            or "paper" in request
-        ):
-            new_plan = Plan()
+        is_literature_request = any(
+            keyword in request
+            for keyword in WorkflowBuilder.LITERATURE_KEYWORDS
+        )
 
-            required = [
-                ("Researcher", "Search papers"),
-                ("Ranking", "Rank papers"),
-                ("Summarizer", "Extract structured data from each paper"),
-                ("Cluster", "Group related papers"),
-                ("Outline", "Build analytical outline"),
-                ("Synthesis", "Compare studies and build evidence claims"),
-                ("Writer", "Write literature review from synthesis claims"),
-                ("Reviewer", "Review literature and citations"),
-            ]
+        if not is_literature_request:
+            return plan
 
-            for agent, goal in required:
-                new_plan.add(PlanStep(agent, goal))
+        literature_plan = Plan()
 
-            return new_plan
+        required_steps = [
+            ("Researcher", "Search for relevant scientific papers"),
+            ("Ranking", "Rank papers by relevance and quality"),
+            (
+                "Summarizer",
+                "Extract structured scientific data from every paper",
+            ),
+            ("Cluster", "Group papers into related research themes"),
+            ("Outline", "Build an analytical literature-review outline"),
+            (
+                "Synthesis",
+                "Compare studies and create evidence-based synthesis claims",
+            ),
+            (
+                "Writer",
+                "Write the literature review using synthesis claims",
+            ),
+            (
+                "Reviewer",
+                "Check completeness, evidence, citations and academic style",
+            ),
+        ]
 
-        return plan
+        for agent_name, goal in required_steps:
+            literature_plan.add(
+                PlanStep(
+                    agent_name,
+                    goal,
+                )
+            )
+
+        return literature_plan

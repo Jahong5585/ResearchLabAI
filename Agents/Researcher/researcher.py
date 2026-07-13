@@ -28,9 +28,9 @@ class Researcher(BaseAgent):
 
         papers = service.search(
             search_query,
-            rows=25
+            rows=5
         )
-
+        papers = papers[:5]
         log(
             "Researcher",
             f"ResearchService вернул: {len(papers)} статей"
