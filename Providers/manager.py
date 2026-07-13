@@ -1,40 +1,27 @@
 from Config.settings import CURRENT_PROVIDER
 
-from Providers.ollama_provider import ask as ollama_ask
-from Providers.openai_provider import ask as openai_ask
-from Providers.gemini_provider import ask as gemini_ask
-from Providers.openrouter_provider import ask as openrouter_ask
-
 
 def ask(prompt, system_prompt="", model=None):
+    """Call only the configured provider.
+
+    Imports are intentionally lazy. The application can therefore use
+    OpenRouter without requiring Ollama, Gemini, and OpenAI SDKs to import
+    successfully at startup.
+    """
 
     if CURRENT_PROVIDER == "ollama":
-        return ollama_ask(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            model=model
-        )
-
+        from Providers.ollama_provider import ask as provider_ask
     elif CURRENT_PROVIDER == "openai":
-        return openai_ask(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            model=model
-        )
-
+        from Providers.openai_provider import ask as provider_ask
     elif CURRENT_PROVIDER == "gemini":
-        return gemini_ask(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            model=model
-        )
-
+        from Providers.gemini_provider import ask as provider_ask
     elif CURRENT_PROVIDER == "openrouter":
-        return openrouter_ask(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            model=model
-        )
-
+        from Providers.openrouter_provider import ask as provider_ask
     else:
-        return "Неизвестный провайдер."
+        raise ValueError(f"Unknown provider: {CURRENT_PROVIDER}")
+
+    return provider_ask(
+        prompt=prompt,
+        system_prompt=system_prompt,
+        model=model,
+    )

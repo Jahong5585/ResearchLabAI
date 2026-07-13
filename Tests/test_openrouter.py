@@ -1,16 +1,15 @@
-from Providers.openrouter_provider import ask
+import os
+
+import pytest
 
 
-def main():
+def test_openrouter_provider_integration():
+    if not os.getenv("OPENROUTER_API_KEY"):
+        pytest.skip("OPENROUTER_API_KEY is not configured")
 
-    answer = ask(
+    pytest.importorskip("openai")
+    from Providers.openrouter_provider import ask
 
-        "Ответь одним словом. Работает?"
-
-    )
-
-    print(answer)
-
-
-if __name__ == "__main__":
-    main()
+    answer = ask("Ответь одним словом. Работает?")
+    assert isinstance(answer, str)
+    assert answer.strip()

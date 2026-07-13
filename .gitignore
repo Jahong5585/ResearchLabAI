@@ -1,7 +1,4 @@
-﻿# Do not upload the API folder
-/API/
-
-# Secret configuration files
+﻿# Secret environment files
 .env
 .env.*
 !.env.example

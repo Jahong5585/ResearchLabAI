@@ -23,6 +23,7 @@ from Agents.Ranking.ranking import RankingAgent
 from Agents.Summarizer.summarizer import Summarizer
 from Agents.Cluster.cluster_agent import ClusterAgent
 from Agents.Outline.outline_agent import OutlineAgent
+from Agents.Synthesis.synthesis_agent import SynthesisAgent
 from Agents.Reviewer.reviewer import Reviewer
 
 
@@ -36,4 +37,5 @@ register("Ranking", RankingAgent())
 register("Summarizer", Summarizer())
 register("Cluster", ClusterAgent())
 register("Outline", OutlineAgent())
+register("Synthesis", SynthesisAgent())
 register("Reviewer", Reviewer())

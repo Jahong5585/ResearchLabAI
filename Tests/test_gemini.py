@@ -1,14 +1,15 @@
-from Providers.gemini_provider import ask
+import os
+
+import pytest
 
 
-def main():
+def test_gemini_provider_integration():
+    if not os.getenv("GEMINI_API_KEY"):
+        pytest.skip("GEMINI_API_KEY is not configured")
 
-    answer = ask(
-        "Ответь одним словом. Работает?"
-    )
+    pytest.importorskip("google.genai")
+    from Providers.gemini_provider import ask
 
-    print(answer)
-
-
-if __name__ == "__main__":
-    main()
+    answer = ask("Ответь одним словом. Работает?")
+    assert isinstance(answer, str)
+    assert answer.strip()

@@ -25,6 +25,8 @@ CLUSTER_MODEL = "google/gemini-2.5-flash-lite"
 
 OUTLINE_MODEL = "google/gemini-2.5-flash-lite"
 
+SYNTHESIS_MODEL = "google/gemini-2.5-flash"
+
 WRITER_MODEL = "google/gemini-2.5-flash"
 
 REVIEWER_MODEL = "google/gemini-2.5-flash-lite"

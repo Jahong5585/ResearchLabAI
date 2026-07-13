@@ -1,221 +1,118 @@
+import json
+
 from Agents.base_agent import BaseAgent
 
 
 class WriterAgent(BaseAgent):
+    """Convert validated synthesis claims into academic prose."""
 
     PROMPT_NAME = "writer"
     MODEL_NAME = "WRITER_MODEL"
 
     def execute(self, task):
+        report = task.synthesis_report
 
         if not task.article_summaries:
-
-            task.literature_review = (
-                "Нет данных для построения обзора."
-            )
-
+            task.literature_review = "Нет данных для построения обзора."
             task.result = task.literature_review
-
             return task.literature_review
 
-        context = ""
-
-        # =====================================================
-        # RESEARCH INFORMATION
-        # =====================================================
-
-        context += "==============================\n"
-        context += "RESEARCH INFORMATION\n"
-        context += "==============================\n\n"
-
-        context += (
-            f"Search query: "
-            f"{task.memory.get('search_query', '')}\n"
-        )
-
-        context += (
-            f"Total papers: "
-            f"{task.memory.get('papers_count', 0)}\n\n"
-        )
-
-        corpus = task.memory.get(
-            "corpus_report",
-            {}
-        )
-
-        context += (
-            f"Average citations: "
-            f"{corpus.get('average_citations', 0)}\n\n"
-        )
-
-        context += "Publication years\n"
-
-        for year, count in corpus.get(
-            "years",
-            {}
-        ).items():
-
-            context += f"{year}: {count}\n"
-
-        context += "\n"
-
-        # =====================================================
-        # EVIDENCE
-        # =====================================================
-
-        context += "==============================\n"
-        context += "EVIDENCE\n"
-        context += "==============================\n\n"
-
-        for evidence in task.evidences:
-
-            context += f"""
-Topic:
-{evidence.topic}
-
-Confidence:
-{evidence.confidence}
-
-Supporting articles:
-{len(evidence.supporting_articles)}
-"""
-
-            if hasattr(evidence, "common_findings"):
-
-                for finding in evidence.common_findings:
-
-                    context += f"- {finding}\n"
-
-            context += "\n"
-
-        # =====================================================
-        # VERIFIED FACTS
-        # =====================================================
-
-        context += "==============================\n"
-        context += "VERIFIED FACTS\n"
-        context += "==============================\n"
-
-        references = []
-
-        article_number = 1
-
-        for article in task.article_summaries:
-
-            if not article.verified_facts:
-                article_number += 1
-                continue
-
-            context += f"""
-
---------------------------------
-
-ARTICLE {article_number}
-
-Verified facts
-
-"""
-
-            for fact in article.verified_facts:
-
-                context += f"- {fact}\n"
-
-            references.append(
-                f"""
-
-ARTICLE {article_number}
-
-Title:
-{article.title}
-
-Authors:
-{article.authors}
-
-Journal:
-{article.journal}
-
-Year:
-{article.year}
-
-DOI:
-{article.doi}
-"""
+        if report is None:
+            task.literature_review = (
+                "Аналитический синтез не выполнен. Writer не может "
+                "самостоятельно анализировать статьи."
             )
+            task.result = task.literature_review
+            return task.literature_review
 
-            article_number += 1
-
-        # =====================================================
-        # REFERENCES
-        # =====================================================
-
-        context += """
-
-==============================
-REFERENCE LIST
-==============================
-
-"""
-
-        context += "\n".join(references)
+        context = self._build_context(task)
 
         prompt = f"""
-Используй только информацию ниже.
+Write an academic literature review for the user's request.
 
-Единственный источник содержания —
+Use only the supplied SYNTHESIS CLAIMS and AGGREGATE STATISTICS. The analysis
+has already been completed by the Synthesis Agent. Your task is to organize it
+into coherent academic prose.
 
-VERIFIED FACTS.
+Rules:
+1. Do not create a new scientific claim.
+2. Do not use external knowledge.
+3. Do not change numbers, years, article numbers, methods, or conclusions.
+4. Every analytical claim must cite its supplied articles in the form
+   [ARTICLE 1; ARTICLE 2].
+5. When contradicting articles are supplied, describe the disagreement and
+   cite both supporting and contradicting articles.
+6. Respect caveats and confidence levels.
+7. Do not write an article-by-article catalogue unless a single study is
+   uniquely relevant.
+8. Prefer synthesis language such as "most studies", "a recurring pattern",
+   "the evidence is mixed", and "methodological differences", but use such
+   wording only when the supplied claim justifies it.
+9. Include a references section using only REFERENCE METADATA.
 
-Дополнительно разрешается использовать только:
-
-RESEARCH INFORMATION
-
-EVIDENCE
-
-Запрещено:
-
-- использовать знания модели;
-- делать предположения;
-- интерпретировать VERIFIED FACTS;
-- изменять числа;
-- изменять годы;
-- изменять проценты;
-- изменять методы;
-- изменять технологии;
-- придумывать статистику;
-- придумывать авторов;
-- придумывать DOI;
-- использовать статьи вне списка ARTICLE;
-- использовать сведения из Abstract;
-- использовать сведения из Problem;
-- использовать сведения из Findings;
-- использовать сведения из Methodology;
-- использовать сведения из Conclusion;
-- использовать сведения из Limitations.
-
-Если VERIFIED FACTS отсутствуют —
-не упоминай такую статью.
-
-Не анализируй статьи,
-для которых отсутствуют VERIFIED FACTS.
-
-Каждое утверждение должно опираться
-только на VERIFIED FACTS.
-
-==============================
-
-{context}
-
-==============================
-
-Запрос пользователя:
-
+USER REQUEST
 {task.user_request}
+
+VALIDATED RESEARCH CONTEXT
+{context}
 """
 
         answer = self.ask_llm(prompt)
-
         task.literature_review = answer
-
         task.result = answer
-
         return answer
+
+    @staticmethod
+    def _build_context(task) -> str:
+        report = task.synthesis_report
+
+        claims = []
+
+        for number, claim in enumerate(report.claims, start=1):
+            claims.append(
+                {
+                    "claim_number": number,
+                    "claim_type": claim.claim_type,
+                    "statement": claim.statement,
+                    "supporting_articles": claim.supporting_articles,
+                    "contradicting_articles": claim.contradicting_articles,
+                    "confidence": claim.confidence,
+                    "rationale": claim.rationale,
+                    "caveats": claim.caveats,
+                }
+            )
+
+        outline = []
+
+        for section in task.outline or []:
+            outline.append(
+                {
+                    "title": section.title,
+                    "description": section.description,
+                }
+            )
+
+        references = []
+
+        for number, article in enumerate(task.article_summaries, start=1):
+            references.append(
+                {
+                    "article_number": number,
+                    "title": article.title,
+                    "authors": article.authors,
+                    "journal": article.journal,
+                    "year": article.year,
+                    "doi": article.doi,
+                }
+            )
+
+        data = {
+            "search_query": task.memory.get("search_query", ""),
+            "outline": outline,
+            "synthesis_overview": report.overview,
+            "synthesis_claims": claims,
+            "aggregate_statistics": report.aggregate_statistics,
+            "reference_metadata": references,
+        }
+
+        return json.dumps(data, ensure_ascii=False, indent=2)

@@ -3,10 +3,8 @@ from Models.plan_step import PlanStep
 
 
 class WorkflowBuilder:
-
     @staticmethod
     def build(user_request, plan):
-
         if plan is None:
             plan = Plan()
 
@@ -19,40 +17,21 @@ class WorkflowBuilder:
             or "article" in request
             or "paper" in request
         ):
-
             new_plan = Plan()
 
             required = [
-
                 ("Researcher", "Search papers"),
-
                 ("Ranking", "Rank papers"),
-
-                ("Summarizer", "Summarize papers"),
-
-                ("Cluster", "Group papers"),
-
-                ("Outline", "Build outline"),
-
-                ("Writer", "Write literature review"),
-
-                ("Reviewer", "Review literature")
-
+                ("Summarizer", "Extract structured data from each paper"),
+                ("Cluster", "Group related papers"),
+                ("Outline", "Build analytical outline"),
+                ("Synthesis", "Compare studies and build evidence claims"),
+                ("Writer", "Write literature review from synthesis claims"),
+                ("Reviewer", "Review literature and citations"),
             ]
 
             for agent, goal in required:
-
-                new_plan.add(
-
-                    PlanStep(
-
-                        agent,
-
-                        goal
-
-                    )
-
-                )
+                new_plan.add(PlanStep(agent, goal))
 
             return new_plan
 

@@ -1,95 +1,96 @@
-# ResearchLab AI
+# ResearchLab AI — Project Status
 
 ## Version
 
-0.1
+0.2.0
 
-## Last completed stage
+## Completed stage
 
-Stage 66
+Stage 67 — Structured extraction and cross-paper synthesis foundation.
 
-## Current stage
+## Current architecture
 
-Stage 67
-
-## Architecture
-
+```text
 Director
 ↓
 Planner
 ↓
-Workflow
-↓
 Orchestrator
 ↓
-Agent
+Workflow
 ↓
-ResearchService
+Researcher
 ↓
-Tools
+Ranking
 ↓
-LLM
+Summarizer
+↓
+Cluster
+↓
+Outline
+↓
+Synthesis
+↓
+Writer
+↓
+Reviewer
+```
 
-## Implemented Agents
+## Implemented in Stage 67
 
-- Planner
-- Writer
-- Programmer
-- Translator
-- Literature
-- Researcher
+- Added `SynthesisAgent` between Outline and Writer.
+- Added `SynthesisClaim` and `SynthesisReport` models.
+- Added strict JSON output for Summarizer.
+- Added robust JSON parser with legacy-response fallback.
+- Added deterministic corpus statistics for synthesis.
+- Added validation of supporting and contradicting article numbers.
+- Writer now consumes synthesis claims instead of analysing articles.
+- Reviewer now compares the review with the synthesis report.
+- Provider imports are lazy; unused SDKs no longer block application startup.
+- API failures raise explicit errors instead of being treated as model output.
+- Query optimizer preserves unknown Cyrillic scientific topics.
+- Added local unit and pipeline tests.
 
-## Implemented Tools
+## Tests
 
-- HttpTool
-- CrossrefTool
-- CrossrefAbstractTool
-- OpenAlexTool
-- WebSearchTool (stub)
-- TimeTool
+```text
+7 passed
+3 skipped
+```
 
-## Core Modules
+Skipped tests are external API integration checks without configured keys.
 
-- Workflow
+## Preserved modules
+
+- BaseAgent
 - Memory
-- Prompt Loader
-- Agent Registry
-- Router
+- Workflow
+- EvidenceBuilder
+- CorpusAnalyzer
+- StatisticsBuilder
+- CitationBuilder
+- CitationValidator
+- PaperRepository
 - ResearchService
-- Tool Manager
-- Paper Repository
-- Citation Builder
-- Query Optimizer
+- Prompt Loader
 - Output Cleaner
+- Tool Manager
+- Data Models
 
-## Models
+## Next necessary stage
 
-- Paper
-- Citation
-- Task
+Full-text evidence acquisition and traceability:
 
-## Current capabilities
+```text
+PDF / XML / HTML
+↓
+Section Parser
+↓
+Source Span
+↓
+Evidence Atom
+↓
+Synthesis Claim
+```
 
-- Multi-agent workflow
-- Scientific search through Crossref
-- OpenAlex API connected
-- Paper repository
-- Citation generation
-- Query optimization
-- Automatic output cleaning
-
-## Next stage
-
-Integrate OpenAlex into ResearchService.
-
-Goals:
-
-- Merge Crossref + OpenAlex
-- Convert OpenAlex results into Paper objects
-- Remove duplicates by DOI
-- Sort by citations
-
-## Known limitations
-
-- Crossref rarely returns abstracts.
-- OpenAlex is not yet converted to Paper objects.
+This stage is required before the system can claim that extracted facts are verified against exact pages and paragraphs.

@@ -24,6 +24,7 @@ Ranking
 Summarizer
 Cluster
 Outline
+Synthesis
 Writer
 Reviewer
 Translator
@@ -42,6 +43,7 @@ Ranking|Rank papers by quality
 Summarizer|Summarize papers
 Cluster|Cluster studies
 Outline|Create outline
+Synthesis|Compare studies and build evidence claims
 Writer|Write literature review
 
 Без JSON.
