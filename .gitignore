@@ -1,34 +1,43 @@
-﻿# Secret environment files
-.env
-.env.*
-!.env.example
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Python virtual environments
+# Virtual Environment
 .venv/
 venv/
+env/
 
-# Python cache
-__pycache__/
-*.py[cod]
-*$py.class
+# Environment variables
+.env
 
-# Test and analysis cache
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# VS Code
+.vscode/
 
-# Local databases
-*.db
-*.sqlite
-*.sqlite3
+# JetBrains
+.idea/
 
-# Log files
+# Logs
 *.log
 
-# Operating system files
+# SQLite
+*.sqlite3
+
+# Temporary
+tmp/
+temp/
+
+# Build
+build/
+dist/
+
+# macOS
 .DS_Store
+
+# Windows
 Thumbs.db
 
-# Editor settings
-.vscode/
-.idea/
+# Research cache
+cache/
+workspace/
