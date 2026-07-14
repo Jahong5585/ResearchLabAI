@@ -16,10 +16,12 @@ class Reviewer(BaseAgent):
     - the Synthesis Report;
     - claim-level evidence profiles;
     - the Comparison Matrix;
+    - extraction provenance;
     - citation-validation results.
 
-    Evidence profiles are based on metadata and available abstracts.
-    They are not full risk-of-bias assessments.
+    FULL_TEXT_SECTIONS means that selected extracted sections were
+    supplied to the system. It does not mean that every page or every
+    section of the complete publication was analyzed.
     """
 
     PROMPT_NAME = "reviewer"
@@ -39,6 +41,7 @@ class Reviewer(BaseAgent):
         "not specified",
         "not reported in the available abstract",
         "not reported in the abstract",
+        "not reported in the supplied source text",
         "none",
         "n/a",
         "unknown",
@@ -46,6 +49,15 @@ class Reviewer(BaseAgent):
 
     COMPARISON_FIELDS = (
         "article_number",
+
+        # Extraction provenance.
+        "source_scope",
+        "uses_full_text",
+        "source_sections",
+        "source_text_characters",
+        "full_text_source",
+
+        # Study and evidence characteristics.
         "normalized_design",
         "source_type",
         "abstract_completeness_score",
@@ -91,6 +103,10 @@ class Reviewer(BaseAgent):
             )
         )
 
+        provenance_audit = self._build_provenance_audit(
+            comparison_data
+        )
+
         comparison_errors = (
             self._deterministic_comparison_checks(
                 literature_review=task.literature_review,
@@ -105,18 +121,22 @@ class Reviewer(BaseAgent):
             )
         )
 
-        deterministic_errors = (
-            comparison_errors
-            + evidence_profile_errors
+        provenance_errors = (
+            self._deterministic_provenance_checks(
+                literature_review=task.literature_review,
+                provenance_audit=provenance_audit,
+            )
         )
 
         deterministic_errors = self._remove_duplicates(
-            deterministic_errors
+            comparison_errors
+            + evidence_profile_errors
+            + provenance_errors
         )
 
         prompt = f"""
 Evaluate the literature review against the supplied synthesis,
-evidence profiles and comparison data.
+evidence profiles, comparison data and extraction provenance.
 
 Do not use external knowledge.
 
@@ -156,6 +176,14 @@ EVIDENCE PROFILE AUDIT
     indent=2,
 )}
 
+EXTRACTION PROVENANCE AUDIT
+
+{json.dumps(
+    provenance_audit,
+    ensure_ascii=False,
+    indent=2,
+)}
+
 CITATION VALIDATION ERRORS
 
 {json.dumps(
@@ -178,7 +206,7 @@ Check whether the literature review:
 
 1. Accurately represents every important validated synthesis claim.
 
-2. Uses only supporting article numbers supplied for the relevant claim.
+2. Uses only article numbers that support the relevant claim.
 
 3. Correctly distinguishes:
 
@@ -195,45 +223,45 @@ Check whether the literature review:
 
 7. Does not present a single-study result as a general consensus.
 
-8. Correctly explains when the same claim is supported by multiple
+8. Correctly explains when the same claim is supported by several
    evidence types.
 
-9. Does not claim methodological convergence unless the evidence profile
-   contains multiple evidence types or compatible study designs.
+9. Compares methodologies instead of merely listing them.
 
-10. Does not print or interpret the raw quality_weighted_support value
-    as a scientific-quality score.
+10. Distinguishes experiments, mixed-methods studies, qualitative
+    studies, surveys, reviews and meta-analyses when the source data
+    permit this comparison.
 
-11. Does not describe a larger weighted-support score as proof that a
-    claim is scientifically true.
+11. Preserves the distinction between:
 
-12. Does not treat abstract_evidence_level as:
+    ABSTRACT_ONLY
 
-    - a full risk-of-bias assessment;
-    - journal quality;
-    - complete article quality;
-    - proof of publication reliability.
+    and:
 
-13. Compares methodologies rather than merely listing them.
+    FULL_TEXT_SECTIONS
 
-14. Distinguishes experiments, mixed-methods studies, qualitative
-    studies, surveys, reviews and meta-analyses when the available
-    records permit this comparison.
+12. Correctly explains that FULL_TEXT_SECTIONS means selected extracted
+    sections rather than a guaranteed complete analysis of every page.
 
-15. Distinguishes objectively measured writing results from student
-    attitudes, experiences, motivation and self-efficacy.
+13. Does not claim that all complete articles were analyzed when some
+    records were ABSTRACT_ONLY.
 
-16. Does not treat differences in participants, methods, outcomes or
-    educational levels as direct contradictions.
+14. Does not call selected-section extraction a complete full-text review.
 
-17. Preserves the boundary that the system analyzed metadata and
-    available abstracts rather than necessarily complete article texts.
+15. Does not claim that FULL_TEXT_SECTIONS records are automatically
+    more reliable or scientifically stronger.
 
-18. Does not claim that information is absent from the complete article
-    merely because it is unavailable in the abstract.
+16. Does not treat source_text_characters as an indicator of scientific
+    quality.
 
-19. Correctly preserves numbers, percentages, sample sizes, years,
-    models, tools, authors and DOI values.
+17. Does not claim that missing information is absent from the complete
+    article merely because it was unavailable in the supplied source text.
+
+18. Does not interpret abstract_evidence_level or quality_weighted_support
+    as a full risk-of-bias or publication-quality assessment.
+
+19. Preserves numbers, percentages, sample sizes, years, models, tools,
+    authors and DOI values.
 
 20. Uses the required citation format:
 
@@ -251,9 +279,13 @@ Return revise if any of the following is present:
 - review evidence presented as a primary experiment;
 - a single-study finding generalized to the entire corpus;
 - absence of direct methodological comparison when comparison is possible;
-- raw weighted-support values presented as scientific-quality scores;
-- abstract completeness presented as complete article quality;
-- missing abstract data presented as missing from the complete article;
+- selected full-text sections presented as complete article analysis;
+- mixed source scopes hidden or described inaccurately;
+- ABSTRACT_ONLY evidence presented as verified against the complete article;
+- full-text availability presented as proof of higher scientific quality;
+- raw internal scores presented as scientific-quality scores;
+- missing source-text information presented as missing from the complete
+  publication;
 - an important synthesis claim or caveat omitted;
 - a weakness that requires rewriting.
 
@@ -287,7 +319,9 @@ Complete every sentence.
 Do not add text before Score or after Decision.
 """
 
-        answer = self.ask_llm(prompt)
+        answer = self.ask_llm(
+            prompt
+        )
 
         task.memory.set(
             "reviewer_raw_answer",
@@ -302,6 +336,11 @@ Do not add text before Score or after Decision.
         task.memory.set(
             "evidence_profile_audit",
             evidence_profile_audit,
+        )
+
+        task.memory.set(
+            "provenance_audit",
+            provenance_audit,
         )
 
         review = self._parse_review(
@@ -331,7 +370,11 @@ Do not add text before Score or after Decision.
                 f"ошибок проверки: "
                 f"{len(deterministic_errors)}; "
                 f"профилированных claims: "
-                f"{evidence_profile_audit['profiled_claims']}"
+                f"{evidence_profile_audit['profiled_claims']}; "
+                f"FULL_TEXT_SECTIONS: "
+                f"{provenance_audit['full_text_count']}; "
+                f"ABSTRACT_ONLY: "
+                f"{provenance_audit['abstract_only_count']}"
             ),
         )
 
@@ -502,7 +545,9 @@ Do not add text before Score or after Decision.
             if not cls._is_missing(
                 design
             ):
-                design_counter[design] += 1
+                design_counter[
+                    design
+                ] += 1
 
             if not cls._is_missing(
                 evidence_level
@@ -552,8 +597,8 @@ Do not add text before Score or after Decision.
                 len(design_counter) >= 2
             ),
             "source_boundary": (
-                "The matrix evaluates abstract-level evidence usability, "
-                "not full-text scientific quality or risk of bias."
+                "The matrix describes source-text usability, not complete "
+                "scientific quality or risk of bias."
             ),
         }
 
@@ -622,8 +667,12 @@ Do not add text before Score or after Decision.
 
         if weighted_scores:
             weighted_average = (
-                sum(weighted_scores)
-                / len(weighted_scores)
+                sum(
+                    weighted_scores
+                )
+                / len(
+                    weighted_scores
+                )
             )
 
             weighted_minimum = min(
@@ -639,7 +688,9 @@ Do not add text before Score or after Decision.
             weighted_maximum = 0.0
 
         return {
-            "total_claims": len(claims),
+            "total_claims": len(
+                claims
+            ),
             "profiled_claims": profiled_claims,
             "objective_supported_claims": (
                 objective_supported_claims
@@ -669,8 +720,136 @@ Do not add text before Score or after Decision.
                 2,
             ),
             "quality_boundary": (
-                "Weighted support is a deterministic abstract-level "
-                "indicator, not a full scientific-quality assessment."
+                "Weighted support is an internal source-level indicator, "
+                "not a complete scientific-quality assessment."
+            ),
+        }
+
+    @classmethod
+    def _build_provenance_audit(
+        cls,
+        comparison_data,
+    ) -> dict[str, Any]:
+        scope_counter = Counter()
+        section_counter = Counter()
+        source_counter = Counter()
+
+        full_text_article_numbers = []
+        abstract_only_article_numbers = []
+
+        for row in comparison_data:
+            article_number = row.get(
+                "article_number"
+            )
+
+            source_scope = cls._text(
+                row.get(
+                    "source_scope",
+                    "ABSTRACT_ONLY",
+                )
+            )
+
+            if not source_scope:
+                source_scope = "ABSTRACT_ONLY"
+
+            uses_full_text = bool(
+                row.get(
+                    "uses_full_text",
+                    False,
+                )
+            )
+
+            if (
+                source_scope == "FULL_TEXT_SECTIONS"
+                and uses_full_text
+            ):
+                scope_counter[
+                    "FULL_TEXT_SECTIONS"
+                ] += 1
+
+                full_text_article_numbers.append(
+                    article_number
+                )
+
+            else:
+                scope_counter[
+                    "ABSTRACT_ONLY"
+                ] += 1
+
+                abstract_only_article_numbers.append(
+                    article_number
+                )
+
+            source_sections = row.get(
+                "source_sections",
+                [],
+            )
+
+            if isinstance(
+                source_sections,
+                list,
+            ):
+                for section_name in source_sections:
+                    section_text = cls._text(
+                        section_name
+                    )
+
+                    if section_text:
+                        section_counter[
+                            section_text
+                        ] += 1
+
+            full_text_source = cls._text(
+                row.get(
+                    "full_text_source",
+                    "",
+                )
+            )
+
+            if full_text_source:
+                source_counter[
+                    full_text_source
+                ] += 1
+
+        full_text_count = scope_counter.get(
+            "FULL_TEXT_SECTIONS",
+            0,
+        )
+
+        abstract_only_count = scope_counter.get(
+            "ABSTRACT_ONLY",
+            0,
+        )
+
+        return {
+            "total_articles": len(
+                comparison_data
+            ),
+            "full_text_count": full_text_count,
+            "abstract_only_count": abstract_only_count,
+            "source_scope_counts": dict(
+                scope_counter
+            ),
+            "full_text_article_numbers": (
+                full_text_article_numbers
+            ),
+            "abstract_only_article_numbers": (
+                abstract_only_article_numbers
+            ),
+            "section_counts": dict(
+                section_counter
+            ),
+            "full_text_source_counts": dict(
+                source_counter
+            ),
+            "mixed_source_scopes": bool(
+                full_text_count
+                and abstract_only_count
+            ),
+            "selected_sections_only": True,
+            "interpretation_boundary": (
+                "FULL_TEXT_SECTIONS means selected extracted sections, "
+                "not guaranteed complete analysis of every article page."
             ),
         }
 
@@ -767,14 +946,14 @@ Do not add text before Score or after Decision.
             "post-test",
         )
 
-        has_comparison_action = any(
-            marker in text
-            for marker in comparison_action_markers
+        has_comparison_action = cls._contains_any(
+            text,
+            comparison_action_markers,
         )
 
-        has_methodological_content = any(
-            marker in text
-            for marker in methodology_markers
+        has_methodological_content = cls._contains_any(
+            text,
+            methodology_markers,
         )
 
         if (
@@ -807,7 +986,7 @@ Do not add text before Score or after Decision.
             if phrase in text:
                 errors.append(
                     "Обнаружена формулировка, которая переносит отсутствие "
-                    "данных в аннотации на полный текст статьи: "
+                    "данных в предоставленном источнике на полный текст: "
                     f"«{phrase}»."
                 )
 
@@ -827,9 +1006,9 @@ Do not add text before Score or after Decision.
         for phrase in unsupported_quality_phrases:
             if phrase in text:
                 errors.append(
-                    "Abstract-level evidence usability ошибочно "
-                    "представлена как окончательная оценка научного "
-                    f"качества: «{phrase}»."
+                    "Внутренний показатель пригодности источника ошибочно "
+                    "представлен как окончательная оценка научного качества: "
+                    f"«{phrase}»."
                 )
 
         return cls._remove_duplicates(
@@ -893,9 +1072,9 @@ Do not add text before Score or after Decision.
 
         if (
             objective_claim_count == 0
-            and any(
-                marker in text
-                for marker in objective_language_markers
+            and cls._contains_any(
+                text,
+                objective_language_markers,
             )
         ):
             errors.append(
@@ -917,9 +1096,9 @@ Do not add text before Score or after Decision.
 
         if (
             perception_claim_count == 0
-            and any(
-                marker in text
-                for marker in perception_language_markers
+            and cls._contains_any(
+                text,
+                perception_language_markers,
             )
         ):
             errors.append(
@@ -928,28 +1107,150 @@ Do not add text before Score or after Decision.
                 "источников поддержки."
             )
 
-        review_language_markers = (
-            "метаанализ",
-            "мета-анализ",
-            "систематический обзор",
-            "обзор литературы",
-            "meta-analysis",
-            "systematic review",
-            "literature review",
+        review_result_markers = (
+            "метаанализ показал",
+            "мета-анализ показал",
+            "по данным метаанализа",
+            "систематический обзор показал",
+            "систематический обзор выявил",
+            "meta-analysis found",
+            "the meta-analysis showed",
+            "systematic review found",
+            "systematic review showed",
         )
 
         if (
             review_claim_count == 0
-            and any(
-                marker in text
-                for marker in review_language_markers
+            and cls._contains_any(
+                text,
+                review_result_markers,
             )
         ):
             errors.append(
                 "Обзор описывает обзорные или метааналитические "
                 "доказательства, хотя профили claims не содержат "
-                "review-evidence статей."
+                "соответствующих review-evidence статей."
             )
+
+        return cls._remove_duplicates(
+            errors
+        )
+
+    @classmethod
+    def _deterministic_provenance_checks(
+        cls,
+        literature_review: str,
+        provenance_audit: dict[str, Any],
+    ) -> list[str]:
+        errors = []
+
+        text = cls._text(
+            literature_review
+        ).casefold()
+
+        if not text:
+            return [
+                "Текст обзора отсутствует."
+            ]
+
+        full_text_count = provenance_audit.get(
+            "full_text_count",
+            0,
+        )
+
+        abstract_only_count = provenance_audit.get(
+            "abstract_only_count",
+            0,
+        )
+
+        mixed_source_scopes = provenance_audit.get(
+            "mixed_source_scopes",
+            False,
+        )
+
+        full_text_overclaim_phrases = (
+            "все статьи были проанализированы полностью",
+            "все полные тексты были проанализированы",
+            "полнотекстовый анализ всех статей",
+            "полный анализ всех статей",
+            "проанализированы полные тексты всех публикаций",
+            "полный текст статьи доказывает",
+            "полный текст статьи показывает",
+            "complete full-text analysis",
+            "all full texts were analyzed",
+            "all complete articles were analyzed",
+            "the full article proves",
+            "the full article shows",
+        )
+
+        for phrase in full_text_overclaim_phrases:
+            if phrase in text:
+                errors.append(
+                    "Выбранные извлечённые разделы полного текста ошибочно "
+                    "представлены как полный анализ всей публикации: "
+                    f"«{phrase}»."
+                )
+
+        selected_section_markers = (
+            "выбранные разделы полного текста",
+            "выбранных разделов полного текста",
+            "отдельные разделы полного текста",
+            "извлеченные разделы полного текста",
+            "извлечённые разделы полного текста",
+            "selected full-text sections",
+            "extracted full-text sections",
+            "full-text sections",
+        )
+
+        abstract_scope_markers = (
+            "аннотац",
+            "abstract-only",
+            "available abstract",
+            "available abstracts",
+            "доступных абстракт",
+        )
+
+        if (
+            full_text_count > 0
+            and not cls._contains_any(
+                text,
+                selected_section_markers,
+            )
+        ):
+            errors.append(
+                "В корпусе использовались выбранные разделы полного текста, "
+                "но итоговый обзор не обозначает ограниченный характер "
+                "полнотекстового извлечения."
+            )
+
+        if (
+            abstract_only_count > 0
+            and not cls._contains_any(
+                text,
+                abstract_scope_markers,
+            )
+        ):
+            errors.append(
+                "Часть корпуса анализировалась только по аннотациям, "
+                "но итоговый обзор не обозначает это ограничение."
+            )
+
+        if mixed_source_scopes:
+            if not (
+                cls._contains_any(
+                    text,
+                    selected_section_markers,
+                )
+                and cls._contains_any(
+                    text,
+                    abstract_scope_markers,
+                )
+            ):
+                errors.append(
+                    "Корпус содержит одновременно FULL_TEXT_SECTIONS и "
+                    "ABSTRACT_ONLY записи, но смешанный характер источников "
+                    "не описан явно."
+                )
 
         return cls._remove_duplicates(
             errors
@@ -1026,8 +1327,10 @@ Do not add text before Score or after Decision.
 
         if "revise" in decision_text:
             review.decision = "revise"
+
         elif "approve" in decision_text:
             review.decision = "approve"
+
         else:
             review.decision = "revise"
 
@@ -1197,18 +1500,10 @@ Do not add text before Score or after Decision.
             ),
         )
 
-        has_revision_recommendation = bool(
-            review.recommendations
-        )
-
-        has_substantive_weakness = bool(
-            review.weaknesses
-        )
-
         if (
             review.decision == "approve"
-            and has_substantive_weakness
-            and has_revision_recommendation
+            and review.weaknesses
+            and review.recommendations
         ):
             review.decision = "revise"
 
@@ -1233,6 +1528,16 @@ Do not add text before Score or after Decision.
                 value
             ).casefold()
             in cls.MISSING_VALUES
+        )
+
+    @staticmethod
+    def _contains_any(
+        text: str,
+        markers,
+    ) -> bool:
+        return any(
+            marker in text
+            for marker in markers
         )
 
     @staticmethod

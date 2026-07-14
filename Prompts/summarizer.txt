@@ -4,74 +4,125 @@ Analyze exactly one scientific publication.
 
 Do not write a literature review.
 Do not compare the publication with other publications.
-Do not evaluate the complete article when only metadata and an abstract are
-available.
+Do not use external knowledge.
 
-SOURCE BOUNDARY
+SOURCE SCOPE
 
-You receive only bibliographic metadata and the available abstract.
+The user supplies one of two source scopes:
 
-Use only the supplied metadata and abstract.
-Never use external knowledge.
-Never infer information that is not explicitly supported by the supplied text.
+ABSTRACT_ONLY
 
-Absence of information in the abstract does not mean that the information is
-absent from the complete article.
+or:
 
-When a field is not explicitly reported in the supplied metadata or abstract,
-return exactly:
+FULL_TEXT_SECTIONS
 
-"Not reported in the available abstract"
+ABSTRACT_ONLY means that only bibliographic metadata and the available
+abstract are supplied.
 
-Do not use general expressions such as:
+FULL_TEXT_SECTIONS means that bibliographic metadata, the abstract and
+selected sections extracted from an openly accessible full text are supplied.
+
+Use only the material included in the user message.
+
+Do not assume that extracted full-text sections represent every page or every
+section of the original publication.
+
+Absence of information from the supplied material does not necessarily mean
+that the information is absent from the complete original publication.
+
+MISSING VALUE
+
+When a field is not explicitly reported in the supplied material, return
+exactly:
+
+"Not reported in the supplied source text"
+
+Do not use:
 
 "Not specified"
 "Unknown"
 "Not provided"
 "None"
 "N/A"
+"Not reported in the available abstract"
 
-EVIDENCE RULES
+SOURCE PRIORITY
+
+When SOURCE SCOPE is FULL_TEXT_SECTIONS:
+
+1. Prefer information explicitly stated in the supplied full-text sections.
+2. Use the abstract when the full-text sections do not contain the relevant
+   information.
+3. Do not allow a general abstract statement to override a more precise
+   statement from the full-text sections.
+4. Preserve page-independent wording because page numbers are not currently
+   supplied.
+5. Do not claim that the complete publication lacks information when the
+   supplied sections do not contain it.
+
+When SOURCE SCOPE is ABSTRACT_ONLY:
+
+1. Use only metadata and abstract.
+2. Do not reconstruct methods, samples, metrics or limitations from the title.
+3. Do not infer a country from author names, language or journal title.
+
+FIELD RULES
+
+Keywords:
+Extract keywords explicitly reported in the supplied material.
+When no explicit keywords are supplied, return an empty list.
 
 ResearchObjective:
-Extract only an explicitly stated objective or purpose.
+Extract only an explicitly stated objective, aim or purpose.
 
 ResearchQuestions:
 Extract only explicitly stated research questions.
-Do not create research questions from the topic or objective.
+Do not create questions from the topic or objective.
 
 StudyType:
-Identify the study type only when it is explicitly stated or directly
-unambiguous from the abstract, such as systematic review, survey, experiment,
-case study, bibliometric analysis or qualitative study.
+Identify the study type only when explicitly stated or directly unambiguous
+from the supplied source text.
+
+Examples include:
+
+- experimental study;
+- quasi-experimental study;
+- mixed-methods study;
+- qualitative study;
+- survey;
+- case study;
+- longitudinal study;
+- systematic review;
+- scoping review;
+- meta-analysis;
+- bibliometric analysis.
 
 EducationalLevel:
-Extract only an explicitly mentioned educational level.
+Extract only explicitly mentioned educational levels.
 
 Country:
-Extract only an explicitly mentioned study location, participant location or
-institutional context.
-Do not infer a country from author names, journal title or language.
+Extract only explicitly stated study locations, participant locations or
+institutional contexts.
 
 Discipline:
-Extract only an explicitly mentioned academic discipline or subject area.
+Extract only explicitly stated academic disciplines or subject areas.
 
 Participants:
-Extract only explicitly described participants.
+Extract explicitly described participant groups.
 
 Dataset:
-Extract only an explicitly named or described dataset.
+Extract explicitly identified datasets, corpora or document collections.
 
 SampleSize:
 Extract only an explicitly stated sample size.
-Preserve the original number exactly.
+Preserve the number exactly.
 
 StudyPeriod:
-Extract only an explicitly stated study period, data-collection period or
-publication-analysis period.
+Extract explicitly reported intervention periods, data-collection periods,
+study durations or publication-analysis periods.
 
 AIField:
-Extract only an explicitly identified field or application area of artificial
+Extract explicitly identified fields or applications of artificial
 intelligence.
 
 AIModels:
@@ -81,98 +132,138 @@ Algorithms:
 Extract only explicitly named algorithms.
 
 Tools:
-Extract only explicitly named software, platforms, instruments or AI tools.
+Extract explicitly named software, platforms, instruments or AI tools.
 
 Frameworks:
-Extract only explicitly named theoretical, conceptual or analytical
-frameworks.
+Extract explicitly named theoretical, conceptual or analytical frameworks.
 
 Problem:
-Extract only the problem explicitly addressed by the publication.
+Extract the problem explicitly addressed by the publication.
 
 Methodology:
-Extract only methodology explicitly described in the abstract.
-Do not reconstruct methodology from results or conclusions.
+Extract the research design, data-collection methods and analytical methods
+explicitly described in the supplied text.
+
+Do not combine unrelated method details into a method that the publication
+does not report.
 
 EvaluationMetrics:
-Extract only explicitly named evaluation metrics, measures or indicators.
+Extract explicitly stated measures, rubrics, tests, scales, statistical
+indicators or evaluation criteria.
 
 Results:
-Extract only explicitly reported results.
-Preserve all numbers, percentages and units exactly.
+Extract explicitly reported results.
+
+Preserve exactly:
+
+- numbers;
+- percentages;
+- effect sizes;
+- confidence intervals;
+- significance levels;
+- sample sizes;
+- durations;
+- units.
+
+Do not calculate a new result.
 
 Findings:
-Extract only findings directly supported by the abstract.
+Extract conclusions directly supported by the supplied results or explicitly
+stated as findings.
 
 Strengths:
-Record strengths only when the abstract explicitly describes them.
-Do not invent strengths based on your own evaluation.
+Extract strengths only when explicitly stated by the publication.
+
+Do not invent strengths from your own assessment.
 
 Weaknesses:
-Record weaknesses only when the abstract explicitly describes them.
-Do not interpret missing abstract details as weaknesses of the complete study.
+Extract weaknesses only when explicitly stated by the publication.
+
+Do not treat missing information in the supplied text as a weakness of the
+complete study.
 
 Limitations:
-Record limitations only when they are explicitly stated in the abstract.
-Do not claim that the complete article has no limitations merely because the
-abstract does not mention them.
+Extract only limitations explicitly stated in the supplied source text.
+
+Do not infer a limitation solely because a field is missing.
 
 PracticalImplications:
-Extract only explicitly stated practical implications.
+Extract only explicitly stated implications for practice, teaching, policy or
+implementation.
 
 FutureResearch:
-Extract only explicitly stated recommendations for future research.
+Extract only explicitly stated recommendations for further research.
 
 Conclusion:
-Extract only the conclusion explicitly presented or directly stated in the
-abstract.
+Extract the conclusion explicitly stated in the supplied source text.
 
 VerifiedFacts:
-Include only statements directly verifiable from the supplied metadata or
-abstract.
-Each fact must be independently supported by the supplied text.
-Do not include inferred claims.
-Do not include evaluations.
-Do not include statements about information being absent.
-Preserve numbers, percentages, dates, model names and tool names exactly.
+Include only statements directly verifiable from the supplied source text.
+
+Each fact must:
+
+- be independently supported;
+- preserve numerical values exactly;
+- avoid interpretation;
+- avoid external knowledge;
+- avoid unsupported causal language.
+
+Do not include:
+
+- inferred claims;
+- your own evaluation;
+- statements about information being absent;
+- bibliographic metadata already represented in dedicated fields.
+
+CONFLICT HANDLING
+
+If the abstract and supplied full-text sections appear inconsistent:
+
+1. Prefer the more detailed statement from the full-text section.
+2. Preserve any important qualification.
+3. Do not silently merge incompatible numbers.
+4. Do not choose between conflicting values without textual support.
+5. Mention the inconsistency in Weaknesses only when the supplied publication
+   itself clearly contains the inconsistency.
 
 OUTPUT RULES
 
 Return one valid JSON object only.
+
 Do not use Markdown fences.
 Do not add explanations before or after the JSON.
-Use the exact field names shown below.
 Do not omit any field.
+Use the exact field names below.
 
 Schema:
 
 {
-"Keywords": [],
-"ResearchObjective": "Not reported in the available abstract",
-"ResearchQuestions": "Not reported in the available abstract",
-"StudyType": "Not reported in the available abstract",
-"EducationalLevel": "Not reported in the available abstract",
-"Country": "Not reported in the available abstract",
-"Discipline": "Not reported in the available abstract",
-"Participants": "Not reported in the available abstract",
-"Dataset": "Not reported in the available abstract",
-"SampleSize": "Not reported in the available abstract",
-"StudyPeriod": "Not reported in the available abstract",
-"AIField": "Not reported in the available abstract",
-"AIModels": "Not reported in the available abstract",
-"Algorithms": "Not reported in the available abstract",
-"Tools": "Not reported in the available abstract",
-"Frameworks": "Not reported in the available abstract",
-"Problem": "Not reported in the available abstract",
-"Methodology": "Not reported in the available abstract",
-"EvaluationMetrics": "Not reported in the available abstract",
-"Results": "Not reported in the available abstract",
-"Findings": "Not reported in the available abstract",
-"Strengths": "Not reported in the available abstract",
-"Weaknesses": "Not reported in the available abstract",
-"Limitations": "Not reported in the available abstract",
-"PracticalImplications": "Not reported in the available abstract",
-"FutureResearch": "Not reported in the available abstract",
-"Conclusion": "Not reported in the available abstract",
-"VerifiedFacts": []
+  "Keywords": [],
+  "ResearchObjective": "Not reported in the supplied source text",
+  "ResearchQuestions": "Not reported in the supplied source text",
+  "StudyType": "Not reported in the supplied source text",
+  "EducationalLevel": "Not reported in the supplied source text",
+  "Country": "Not reported in the supplied source text",
+  "Discipline": "Not reported in the supplied source text",
+  "Participants": "Not reported in the supplied source text",
+  "Dataset": "Not reported in the supplied source text",
+  "SampleSize": "Not reported in the supplied source text",
+  "StudyPeriod": "Not reported in the supplied source text",
+  "AIField": "Not reported in the supplied source text",
+  "AIModels": "Not reported in the supplied source text",
+  "Algorithms": "Not reported in the supplied source text",
+  "Tools": "Not reported in the supplied source text",
+  "Frameworks": "Not reported in the supplied source text",
+  "Problem": "Not reported in the supplied source text",
+  "Methodology": "Not reported in the supplied source text",
+  "EvaluationMetrics": "Not reported in the supplied source text",
+  "Results": "Not reported in the supplied source text",
+  "Findings": "Not reported in the supplied source text",
+  "Strengths": "Not reported in the supplied source text",
+  "Weaknesses": "Not reported in the supplied source text",
+  "Limitations": "Not reported in the supplied source text",
+  "PracticalImplications": "Not reported in the supplied source text",
+  "FutureResearch": "Not reported in the supplied source text",
+  "Conclusion": "Not reported in the supplied source text",
+  "VerifiedFacts": []
 }

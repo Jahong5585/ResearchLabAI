@@ -24,6 +24,7 @@ class SynthesisEngine:
         "not specified",
         "not reported in the available abstract",
         "not reported in the abstract",
+        "not reported in the supplied source text",
         "none",
         "n/a",
         "unknown",

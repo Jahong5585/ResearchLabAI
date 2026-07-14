@@ -6,8 +6,13 @@ class ComparisonMatrixBuilder:
     """
     Builds a deterministic comparison matrix from ArticleSummary objects.
 
-    The matrix is based only on bibliographic metadata and available
-    abstracts. It does not evaluate the complete article text.
+    The matrix may be based on:
+
+    - bibliographic metadata and an available abstract;
+    - metadata, abstract and selected full-text sections.
+
+    It does not evaluate the complete publication unless the relevant
+    full-text sections were actually supplied.
 
     No LLM or paid API is used.
     """
@@ -17,6 +22,7 @@ class ComparisonMatrixBuilder:
         "not specified",
         "not reported in the available abstract",
         "not reported in the abstract",
+        "not reported in the supplied source text",
         "none",
         "n/a",
         "unknown",
@@ -42,7 +48,7 @@ class ComparisonMatrixBuilder:
 
     DESIGN_WEIGHTS = (
         (
-           (
+            (
                 "meta-analysis",
                 "meta analysis",
                 "meta-analytic",
@@ -53,7 +59,7 @@ class ComparisonMatrixBuilder:
                 "метааналитическое исследование",
             ),
             5.0,
-             "Meta-analysis",
+            "Meta-analysis",
         ),
         (
             (
@@ -195,7 +201,10 @@ class ComparisonMatrixBuilder:
     }
 
     @classmethod
-    def build(cls, summaries) -> list[dict[str, Any]]:
+    def build(
+        cls,
+        summaries,
+    ) -> list[dict[str, Any]]:
         """
         Build one comparison row for every ArticleSummary.
         """
@@ -261,6 +270,54 @@ class ComparisonMatrixBuilder:
             )
         )
 
+        source_scope = cls._value(
+            getattr(
+                summary,
+                "source_scope",
+                "ABSTRACT_ONLY",
+            )
+        )
+
+        if not source_scope:
+            source_scope = "ABSTRACT_ONLY"
+
+        source_sections = cls._list_value(
+            getattr(
+                summary,
+                "source_sections",
+                [],
+            )
+        )
+
+        source_text_characters = cls._to_int(
+            getattr(
+                summary,
+                "source_text_characters",
+                0,
+            )
+        )
+
+        full_text_url = cls._value(
+            getattr(
+                summary,
+                "full_text_url",
+                "",
+            )
+        )
+
+        full_text_source = cls._value(
+            getattr(
+                summary,
+                "full_text_source",
+                "",
+            )
+        )
+
+        uses_full_text = (
+            source_scope == "FULL_TEXT_SECTIONS"
+            and bool(source_sections)
+        )
+
         design_label, design_weight = cls._detect_design(
             study_type=study_type,
             methodology=methodology,
@@ -307,6 +364,16 @@ class ComparisonMatrixBuilder:
                     "",
                 )
             ),
+
+            # Extraction provenance.
+            "source_scope": source_scope,
+            "uses_full_text": uses_full_text,
+            "source_sections": source_sections,
+            "source_text_characters": source_text_characters,
+            "full_text_url": full_text_url,
+            "full_text_source": full_text_source,
+
+            # Study characteristics.
             "research_objective": cls._value(
                 getattr(
                     summary,
@@ -465,6 +532,8 @@ class ComparisonMatrixBuilder:
                     "",
                 )
             ),
+
+            # Deterministic comparison indicators.
             "source_type": source_type,
             "abstract_completeness_score": (
                 completeness["score"]
@@ -547,11 +616,12 @@ class ComparisonMatrixBuilder:
             ):
                 return label, weight
 
-        if cls._is_missing(study_type) and cls._is_missing(
-            methodology
+        if (
+            cls._is_missing(study_type)
+            and cls._is_missing(methodology)
         ):
             return (
-                "Not identifiable from available abstract",
+                "Not identifiable from supplied source text",
                 0.5,
             )
 
@@ -600,7 +670,10 @@ class ComparisonMatrixBuilder:
         source_type: str,
     ) -> str:
         """
-        Estimate evidence usability from abstract-level information only.
+        Estimate evidence usability from supplied source information.
+
+        The field name remains abstract_evidence_level for backward
+        compatibility with existing project components.
 
         This is not a full risk-of-bias or article-quality assessment.
         """
@@ -648,6 +721,55 @@ class ComparisonMatrixBuilder:
         ).casefold()
 
         return text in cls.MISSING_VALUES
+
+    @staticmethod
+    def _list_value(
+        value: Any,
+    ) -> list[str]:
+        if value is None:
+            return []
+
+        if isinstance(
+            value,
+            (
+                list,
+                tuple,
+                set,
+            ),
+        ):
+            result = []
+
+            for item in value:
+                text = str(item).strip()
+
+                if (
+                    text
+                    and text not in result
+                ):
+                    result.append(text)
+
+            return result
+
+        text = str(value).strip()
+
+        if not text:
+            return []
+
+        return [text]
+
+    @staticmethod
+    def _to_int(
+        value: Any,
+    ) -> int:
+        try:
+            return int(
+                value or 0
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return 0
 
     @staticmethod
     def _value(
